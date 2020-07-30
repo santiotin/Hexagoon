@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using GoogleMobileAds.Api;
 
 public class GameManager : MonoBehaviour
 {
@@ -13,12 +14,21 @@ public class GameManager : MonoBehaviour
     public GameObject highScoreText;
     public GameObject titleText;
     public GameObject endMenu;
+    public GameObject fadeOutBg;
+    public GameObject bannerTop;
+    public GameObject bannerBottom;
+    public AudioSource audioButton;
+    public AudioSource audioExplode;
+    public GameObject finalScore;
+    public GameObject finalHighScore;
     bool started = false;
+    bool firstLoad = true;
     int score = 0;
     float highScore;
     // Start is called before the first frame update
     void Start()
     {
+        MobileAds.Initialize(initStatus => { });
         highScore = PlayerPrefs.GetFloat("highscore", 0);
         highScoreText.GetComponent<Text>().text = "Highscore: " + highScore.ToString();
     }
@@ -31,6 +41,7 @@ public class GameManager : MonoBehaviour
     }
 
     public void startGame() {
+        audioButton.Play();
         started = true;
         spawner.GetComponent<Spawner>().generateHexa(true);
         player.GetComponent<PlayerMov>().startMove();
@@ -41,18 +52,23 @@ public class GameManager : MonoBehaviour
     }
 
     public void endGame() {
+        audioExplode.Play();
         started = false;
         spawner.GetComponent<Spawner>().generateHexa(false);
-        //StartCoroutine(changeScene(0));
-        endMenu.SetActive(true);
+
+        if(firstLoad) {
+            bannerTop.GetComponent<Banner>().RequestBanner();
+            bannerBottom.GetComponent<Banner>().RequestBanner();
+            firstLoad = false;
+        }
+        
         if(score > highScore) {
             PlayerPrefs.SetFloat("highscore", score);
             highScore = score;
         }
-    }
-
-    void endPanel() {
-
+        finalScore.GetComponent<Text>().text = score.ToString();
+        finalHighScore.GetComponent<Text>().text = "Highscore: " + highScore.ToString();
+        endMenu.SetActive(true);
     }
 
     public bool hasStarted() {
@@ -61,6 +77,14 @@ public class GameManager : MonoBehaviour
     
     public void incrementScore() {
         if(started) score++;
+    }
+
+    public void retry() {
+        audioButton.Play();
+        fadeOutBg.SetActive(true);
+        StartCoroutine(changeScene(0,1.5f));
+        bannerTop.GetComponent<Banner>().OnDestroy();
+        bannerBottom.GetComponent<Banner>().OnDestroy();
     }
 
     IEnumerator FadeTextToZeroAlpha(float t, Text i) {
@@ -83,8 +107,8 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    IEnumerator changeScene(int sceneNum) {
-        yield return new WaitForSeconds(4.0f);
+    IEnumerator changeScene(int sceneNum, float duration) {
+        yield return new WaitForSeconds(duration);
         SceneManager.LoadScene(sceneNum);
     }
 }
